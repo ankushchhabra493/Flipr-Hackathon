@@ -42,7 +42,10 @@ function App() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ articles: data.articles.slice(0, 3) }),
+          body: JSON.stringify({ 
+            articles: data.articles.slice(0, 15),
+            query: searchQuery 
+          }),
         });
 
         if (!summarizedResponse.ok) {
@@ -52,12 +55,10 @@ function App() {
         const summarizedData = await summarizedResponse.json();
         console.log("Summarized articles:", summarizedData);
 
-        // Clean up the data before setting it in state
         const cleanedData = summarizedData.map(article => {
           let summary = article.summary;
           let topic = article.topic;
 
-          // If summary is a JSON string, parse it
           if (typeof summary === 'string' && summary.includes('```json')) {
             try {
               const jsonStr = summary.replace(/```json|\s+```/g, '').trim();
@@ -126,13 +127,19 @@ function App() {
                 <h2 className="text-xl font-semibold">
                   {article.location}
                 </h2>
-                <p className="text-gray-600 mt-2">
-                  {query ? (
-                    typeof article.summary === 'string' ? 
-                      article.summary : 
-                      article.description
-                  ) : article.description}
-                </p>
+                <h3 className="text-lg font-medium mt-3">
+                  {article.title}
+                </h3>
+                <div className="mt-4">
+                  <span className="font-semibold text-gray-700">Summary: </span>
+                  <p className="text-gray-600 mt-1">
+                    {query ? (
+                      typeof article.summary === 'string' ? 
+                        article.summary : 
+                        article.description
+                    ) : article.description}
+                  </p>
+                </div>
                 <p className="text-sm text-gray-500 mt-2">
                   Published at: {new Date(article.publishedAt).toLocaleString()}
                 </p>
