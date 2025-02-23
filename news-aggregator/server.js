@@ -2,8 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const NewsAPI = require('newsapi');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const fetch = require('node-fetch');
-const cheerio = require('cheerio');
+const { scrapeNewsContent } = require('./news_crawler/scraper');
 
 const app = express();
 const port = 5001;
@@ -12,81 +11,69 @@ app.use(cors());
 app.use(express.json());
 
 // Initialize APIs
-const newsapi = new NewsAPI('ab8df099af1a4b90aec7e1fd523a2319'); // Replace with your News API key
-const genAI = new GoogleGenerativeAI('AIzaSyC6TiENdoJXQr7pf9FQPRk5GUG1nLDy9A4'); // Replace with your Gemini API key
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' }); // Choose the model
+const newsapi = new NewsAPI('ab8df099af1a4b90aec7e1fd523a2319');
+const genAI = new GoogleGenerativeAI('AIzaSyA-aKbT-UsYnl5qGNDIs-ByvSRwaPAuWWA');
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
 
-// Function to translate query using Gemini API
-async function translateQuery(query) {
-  try {
-    const prompt = `Translate the following search query to be more specific for news search: "${query}". The translated query should focus on current events and local news.`;
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    return responseText.trim();
-  } catch (error) {
-    console.error('Gemini Translation Error:', error);
-    return query + ' news'; // Fallback query
-  }
-}
-
-// Function to perform Google search
-async function googleSearch(query) {
-  const apiKey = '07073e7622410c235d71d3a1d36f9fd245d389c0be37048d07a3f39f5a4639b1'; // Replace with your SerpAPI API key
-  const encodedQuery = encodeURIComponent(query);
-  const url = `https://serpapi.com/search?q=${encodedQuery}&api_key=${apiKey}`;
-
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    if (data.organic_results) {
-      return data.organic_results.map(result => result.link);
-    } else {
-      console.warn('No organic results found.');
-      return [];
-    }
-  } catch (error) {
-    console.error('Google Search Error:', error);
-    return [];
-  }
-}
-
-// Function to scrape news from a website
-async function scrapeNews(url) {
-  try {
-    const response = await fetch(url);
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    // Adjust these selectors based on the website structure
-    let title = $('h1').text() || $('h2').text() || $('title').text();
-    let content = $('article').text() || $('div.content').text() || $('body').text();
-
-    // Clean up content
-    title = title.trim();
-    content = content.substring(0, 1000).trim(); // Limit content for summarization
-
-    return { title, content, url };
-  } catch (error) {
-    console.error('Scraping Error:', url, error);
-    return null;
-  }
-}
-
-// Function to summarize news using Gemini API and determine the title
-async function summarizeNews(news) {
+async function summarizeNews(news, searchQuery) {
   if (!news || !news.content) return null;
 
+  console.log('News to be summarized:', news.title);
+
   try {
-    const prompt = `Summarize the following news article in under 100 words and suggest a title that reflects the local topic or category of the news (e.g., city name, sport, leader name, festival):\nTitle: ${news.title}\nContent: ${news.content}\n\nOutput format: {"title": "Suggested Title", "summary": "Summarized News"}`;
+    const prompt = `Analyze and summarize the following news article:
+    Title: ${news.title}
+    Content: ${news.content}
+    Search Query: ${searchQuery}
+
+    Task:
+    1. Extract all cities mentioned in the news content
+    2. Check if any of these cities belong to the state mentioned in the search query
+    3. Only consider the article relevant if at least one mentioned city is within the specified state
+    4. Use that city as the location in the response
+
+    Rules:
+    - If search query contains a state (e.g., "Punjab news"), only include articles about cities in that state
+    - If no cities from the specified state are mentioned, set isRelevant to false
+    - If no state is specified in the search query, set isRelevant to true and use the main city from the news
+    - Only consider Indian cities and states
+
+    Provide a JSON response in this exact format (no markdown, no code blocks):
+    {
+      "summary": "Summarized news content in under 100 words",
+      "topic": "City - News Category",
+      "location": "City",
+      "isRelevant": true/false,
+      "citiesFound": ["list of cities found in the article"]
+    }`;
+
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
 
     try {
-      const parsedResponse = JSON.parse(responseText);
-      return { ...news, title: parsedResponse.title, summary: parsedResponse.summary };
+      const cleanJson = responseText.replace(/```json|```/g, '').trim();
+      const parsedResponse = JSON.parse(cleanJson);
+      
+      if (parsedResponse.isRelevant) {
+        console.log('News summarized successfully:', parsedResponse.summary);
+        console.log('News topic identified:', parsedResponse.topic);
+        console.log('Cities found:', parsedResponse.citiesFound);
+        console.log('Selected location:', parsedResponse.location);
+        
+        return {
+          ...news,
+          summary: parsedResponse.summary,
+          topic: parsedResponse.topic,
+          location: parsedResponse.location,
+          citiesFound: parsedResponse.citiesFound
+        };
+      }
+      console.log('Article skipped: No relevant cities found for state:', searchQuery);
+      return null;
     } catch (parseError) {
       console.error('❌ JSON Parse Error:', parseError);
-      return { ...news, title: 'Local News', summary: responseText }; // Fallback
+      console.error('Raw response:', responseText);
+      return null;
     }
   } catch (error) {
     console.error('Gemini Summarization Error:', error);
@@ -94,80 +81,50 @@ async function summarizeNews(news) {
   }
 }
 
-// Function to fetch initial news from News API
-async function fetchInitialNews(query) {
-  try {
-    const response = await newsapi.v2.everything({
-      q: query,
-      language: 'en',
-      sortBy: 'relevancy',
-      pageSize: 10, // Number of articles to fetch
-    });
-
-    console.log('News API Response:', response); // Add this line
-
-    if (response.status === 'ok') {
-      const articles = response.articles.map(article => ({
-        title: article.title,
-        summary: article.description,
-        url: article.url,
-      }));
-
-      return {
-        [query]: articles,
-      };
-    } else {
-      console.error('News API Error:', response.message);
-      return {};
-    }
-  } catch (error) {
-    console.error('❌ News API Error:', error);
-    return {};
-  }
-}
-
-// Main endpoint to fetch and summarize news
-app.post('/fetch-news', async (req, res) => {
-  const { query } = req.body;
+app.post('/summarize-news', async (req, res) => {
+  const { articles, query } = req.body;
+  console.log('Request Body:', { query, articleCount: articles.length });
+  
+  const targetCount = 5; // Target number of summarized articles
+  let processedArticles = 0;
+  let validSummarizedArticles = [];
 
   try {
-    if (query === 'world') {
-      // Fetch initial news from News API
-      const initialNews = await fetchInitialNews(query);
-      res.json(initialNews);
-    } else {
-      // 1. Translate the query
-      const translatedQuery = await translateQuery(query);
-      console.log('Translated Query:', translatedQuery);
+    // Process articles in batches until we get enough valid summaries
+    while (validSummarizedArticles.length < targetCount && processedArticles < articles.length) {
+      const nextBatch = articles.slice(processedArticles, processedArticles + 3);
+      processedArticles += nextBatch.length;
 
-      // 2. Perform Google search
-      const searchResults = await googleSearch(translatedQuery);
-      console.log('Search Results:', searchResults);
+      console.log(`Processing batch of ${nextBatch.length} articles...`);
 
-      // 3. Scrape news from websites
-      const scrapedNews = await Promise.all(searchResults.map(scrapeNews)); // Remove the slice(0, 5)
-      const validNews = scrapedNews.filter(news => news !== null);
-      console.log('Scraped News:', validNews);
+      const summarizedBatch = await Promise.all(
+        nextBatch.map(async (article) => {
+          const content = await scrapeNewsContent(article.url);
+          if (content) {
+            console.log('Scraped content for:', article.title);
+            const summarizedArticle = await summarizeNews({ ...article, content }, query);
+            return summarizedArticle;
+          }
+          return null;
+        })
+      );
 
-      // 4. Summarize news using Gemini API
-      const summarizedNews = await Promise.all(validNews.map(summarizeNews));
-      const validSummarizedNews = summarizedNews.filter(news => news !== null);
-      console.log('Summarized News:', validSummarizedNews);
+      const validBatch = summarizedBatch.filter(article => article !== null);
+      validSummarizedArticles = [...validSummarizedArticles, ...validBatch];
 
-      // 5. Organize news by local topic
-      const organizedNews = {};
-      validSummarizedNews.forEach(news => {
-        if (!organizedNews[news.title]) {
-          organizedNews[news.title] = [];
-        }
-        organizedNews[news.title].push(news);
-      });
-
-      res.json(organizedNews);
+      console.log(`Got ${validSummarizedArticles.length} valid summaries out of ${targetCount} target`);
+      
+      if (processedArticles >= articles.length) {
+        console.log('Processed all available articles');
+        break;
+      }
     }
+
+    console.log(`Returning ${validSummarizedArticles.length} summarized articles`);
+    res.json(validSummarizedArticles.slice(0, targetCount));
   } catch (error) {
     console.error('❌ Main Error:', error);
-    res.status(500).json({ error: 'Failed to fetch and summarize news' });
+    res.status(500).json({ error: 'Failed to summarize news' });
   }
 });
 

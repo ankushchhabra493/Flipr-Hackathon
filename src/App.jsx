@@ -6,24 +6,27 @@ import "./App.css";
 
 function App() {
   const [query, setQuery] = useState('');
-  const [news, setNews] = useState({});
+  const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isDefaultNews, setIsDefaultNews] = useState(true);
-  const [articles, setArticles] = useState([]); // State for articles from News API
 
-  const apiKey = "ab8df099af1a4b90aec7e1fd523a2319"; // Replace with your actual NewsAPI key
+  const apiKey = "dc9ed16a5d6b455c923f5080fcc0fba4";
 
   const fetchArticles = async (searchQuery = "") => {
     setLoading(true);
     setError("");
-    setIsDefaultNews(!searchQuery); // Set isDefaultNews based on whether there's a search query
+    setIsDefaultNews(!searchQuery);
 
     try {
-      const timestamp = new Date().getTime(); // Add a timestamp to prevent caching
-      const url = searchQuery
-        ? `https://newsapi.org/v2/everything?q=${encodeURIComponent(searchQuery)}&apiKey=${apiKey}&_=${timestamp}`
-        : `https://newsapi.org/v2/top-headlines?country=us&apiKey=${apiKey}&_=${timestamp}`;
+      const timestamp = new Date().getTime();
+      let url;
+
+      if (searchQuery.trim() === '') {
+        url = `https://newsapi.org/v2/top-headlines?country=us&apiKey=${apiKey}&_=${timestamp}`;
+      } else {
+        url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(searchQuery)}&pageSize=20&apiKey=${apiKey}&_=${timestamp}`;
+      }
 
       const response = await fetch(url);
       if (!response.ok) {
@@ -32,11 +35,56 @@ function App() {
 
       const data = await response.json();
       console.log("Fetched articles:", data.articles);
-      setArticles(data.articles); // Store articles in the articles state
+
+      if (searchQuery.trim() !== '') {
+        const summarizedResponse = await fetch('http://localhost:5001/summarize-news', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ articles: data.articles.slice(0, 3) }),
+        });
+
+        if (!summarizedResponse.ok) {
+          throw new Error(`HTTP Error ${summarizedResponse.status}`);
+        }
+
+        const summarizedData = await summarizedResponse.json();
+        console.log("Summarized articles:", summarizedData);
+
+        // Clean up the data before setting it in state
+        const cleanedData = summarizedData.map(article => {
+          let summary = article.summary;
+          let topic = article.topic;
+
+          // If summary is a JSON string, parse it
+          if (typeof summary === 'string' && summary.includes('```json')) {
+            try {
+              const jsonStr = summary.replace(/```json|\s+```/g, '').trim();
+              const parsed = JSON.parse(jsonStr);
+              summary = parsed.summary;
+              topic = parsed.topic;
+            } catch (e) {
+              console.error('Failed to parse JSON:', e);
+            }
+          }
+
+          return {
+            ...article,
+            summary,
+            topic
+          };
+        });
+
+        setNews(cleanedData);
+      } else {
+        setNews(data.articles);
+      }
+
       setError("");
     } catch (error) {
       console.error("❌ Fetch Error:", error.message);
-      setArticles([]);
+      setNews([]);
       setError(error.message || "Error fetching data.");
     } finally {
       setLoading(false);
@@ -44,11 +92,11 @@ function App() {
   };
 
   useEffect(() => {
-    fetchArticles(); // Fetch initial news on component mount
+    fetchArticles();
   }, []);
 
   const handleSearch = () => {
-    fetchArticles(query); // Fetch news based on search query
+    fetchArticles(query);
   };
 
   return (
@@ -70,27 +118,39 @@ function App() {
       {loading && <p className="text-blue-500 text-center">Loading articles...</p>}
       {error && <p className="text-red-500 text-center">{error}</p>}
 
-      {articles.length > 0 ? (
-        articles.map((article) => (
-          <Card key={article.url} className="p-4 shadow-lg">
-            <CardContent>
-              <h2 className="text-xl font-semibold">{article.title}</h2>
-              <p className="text-gray-600 mt-2">{article.description}</p>
-              <p className="text-sm text-gray-500 mt-2">Published at: {new Date(article.publishedAt).toLocaleString()}</p>
-              <Button
-                className="mt-4"
-                onClick={() => window.open(article.url, "_blank")}
-              >
-                Read More
-              </Button>
-            </CardContent>
-          </Card>
-        ))
+      {news.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          {news.map((article) => (
+            <Card key={article.url} className="p-4 shadow-lg">
+              <CardContent>
+                <h2 className="text-xl font-semibold">
+                  {article.location}
+                </h2>
+                <p className="text-gray-600 mt-2">
+                  {query ? (
+                    typeof article.summary === 'string' ? 
+                      article.summary : 
+                      article.description
+                  ) : article.description}
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Published at: {new Date(article.publishedAt).toLocaleString()}
+                </p>
+                <Button
+                  className="mt-4"
+                  onClick={() => window.open(article.url, "_blank")}
+                >
+                  Read More
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : (
-        <p className="text-center">No news available.</p>
+        !query && <p className="text-center">No news available.</p>
       )}
     </div>
   );
-};
+}
 
 export default App;
