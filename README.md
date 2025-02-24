@@ -20,13 +20,7 @@ Develop an **autonomous AI agent** capable of searching, summarizing, and publis
 ✔ **Automated Web Crawling & Data Extraction** – Fetch news articles from reliable sources.
 ✔ **Summarization & Content Generation** – Process articles into well-structured summaries.
 ✔ **SEO Optimization** – Enhance search rankings with keywords & metadata.
-✔ **Automated Publishing** – Post content **without manual intervention**.
-
-### **Bonus Features (Extra Points!)**
-⭐ **Use of Open-Source LLMs** – Extra credit for self-hosted models instead of proprietary APIs.  
-⭐ **Image Generation** – AI-generated **infographics & visuals** for blog posts.  
-⭐ **Multilingual Support** – Translate articles into **multiple languages** like Hindi & English.  
-⭐ **User Engagement Metrics** – Track views, shares, and search rankings.  
+✔ **Automated Publishing** – Post content **without manual intervention**. 
 
 ---
 ## 📌 Project Description
