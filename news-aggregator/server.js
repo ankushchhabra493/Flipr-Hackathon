@@ -9,7 +9,11 @@ import axios from "axios"; // Updated to ES module import
 const app = express();
 const port = 5001;
 
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://newsummaries.netlify.app'],
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
 app.use(express.json());
 
 /*

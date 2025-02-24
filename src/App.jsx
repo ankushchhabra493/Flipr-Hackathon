@@ -4,7 +4,7 @@ import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
 import "./App.css";
 
-const BACKEND_URL = "http://localhost:5001";
+const BACKEND_URL = "https://flipr-hackathon-4.onrender.com";
 
 function App() {
   const [query, setQuery] = useState('');
