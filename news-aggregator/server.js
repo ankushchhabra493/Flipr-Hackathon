@@ -10,7 +10,7 @@ const app = express();
 const port = 5001;
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://indian-news-summary.netlify.app'],
+  origin: ['http://localhost:3000', 'https://indian-news-summaries.netlify.app'],
   methods: ['GET', 'POST'],
   credentials: true
 }));
@@ -120,11 +120,7 @@ const geminiKeys = [
   "AIzaSyD7Ftzy5T4kFRJGX1d88CQo0PaHOmVLH6A",
   "AIzaSyCA1KieXJxkYvxbeOZGKF6kD9KQr2XKnC4",
   "AIzaSyBUV8rZ_pNuHp9zc10TWee7hU8CRQwvadc",
-  "AIzaSyAD0VfXgVdMbJq6BQUY-mMCchNkIiHVxRQ",
-  "AIzaSyDBxfnMHj_nQc2zzWwQOjCHqe2_yMsi0xk",
-  "AIzaSyAF5jmTZAuc78j1rInKvrwJBWtFIJKYeG0",
-  "AIzaSyABHs_TVnhtT3u0Oc47DQVsw-GT75dZpkc",
-  "AIzaSyAbOT9xIpEfqlyN_qo2TYca7M7on90hjzY"
+  "AIzaSyAD0VfXgVdMbJq6BQUY-mMCchNkIiHVxRQ"
 ];
 
 // Add delay between API calls
@@ -173,12 +169,48 @@ async function generateContentWithFallback(prompt) {
   throw new Error("All Gemini API keys failed after multiple attempts");
 }
 
-// Previous code remains the same until summarizeNews function
-
 async function summarizeNews(news, searchQuery) {
   if (!news || !news.content) return null;
 
   console.log("📌 News to be summarized:", news.content);
+
+  // Define a map of states to cities
+  const stateToCities = {
+    "Andhra Pradesh": ["Visakhapatnam", "Vijayawada", "Guntur", "Tirupati"],
+    "Arunachal Pradesh": ["Itanagar", "Tawang", "Ziro", "Pasighat"],
+    "Assam": ["Guwahati", "Dibrugarh", "Silchar", "Jorhat"],
+    "Bihar": ["Patna", "Gaya", "Muzaffarpur", "Bhagalpur"],
+    "Chhattisgarh": ["Raipur", "Bhilai", "Bilaspur", "Korba"],
+    "Goa": ["Panaji", "Margao", "Vasco da Gama", "Mapusa"],
+    "Gujarat": ["Ahmedabad", "Surat", "Vadodara", "Rajkot"],
+    "Haryana": ["Chandigarh", "Faridabad", "Gurgaon", "Panipat"],
+    "Himachal Pradesh": ["Shimla", "Manali", "Dharamshala", "Kullu"],
+    "Jharkhand": ["Ranchi", "Jamshedpur", "Dhanbad", "Bokaro"],
+    "Karnataka": ["Bengaluru", "Mysuru", "Mangaluru", "Hubballi"],
+    "Kerala": ["Thiruvananthapuram", "Kochi", "Kozhikode", "Thrissur"],
+    "Madhya Pradesh": ["Bhopal", "Indore", "Gwalior", "Jabalpur"],
+    "Maharashtra": ["Mumbai", "Pune", "Nagpur", "Nashik"],
+    "Manipur": ["Imphal", "Thoubal", "Bishnupur", "Ukhrul"],
+    "Meghalaya": ["Shillong", "Tura", "Nongstoin", "Jowai"],
+    "Mizoram": ["Aizawl", "Lunglei", "Champhai", "Serchhip"],
+    "Nagaland": ["Kohima", "Dimapur", "Mokokchung", "Zunheboto"],
+    "Odisha": ["Bhubaneswar", "Cuttack", "Rourkela", "Puri"],
+    "Punjab": ["Amritsar", "Ludhiana", "Jalandhar", "Patiala"],
+    "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur", "Kota"],
+    "Sikkim": ["Gangtok", "Namchi", "Gyalshing", "Mangan"],
+    "Tamil Nadu": ["Chennai", "Coimbatore", "Madurai", "Tiruchirappalli"],
+    "Telangana": ["Hyderabad", "Warangal", "Nizamabad", "Karimnagar"],
+    "Tripura": ["Agartala", "Udaipur", "Dharmanagar", "Kailashahar"],
+    "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Agra"],
+    "Uttarakhand": ["Dehradun", "Haridwar", "Nainital", "Rishikesh"],
+    "West Bengal": ["Kolkata", "Howrah", "Durgapur", "Siliguri"]
+  };
+
+  // Function to get a random city from the given state
+  function getRandomCity(state) {
+    const cities = stateToCities[state];
+    return cities ? cities[Math.floor(Math.random() * cities.length)] : state;
+  }
 
   try {
     const prompt = `Summarize the following Indian news article in under 100 words:
@@ -203,54 +235,49 @@ async function summarizeNews(news, searchQuery) {
 
     const responseText = await generateContentWithFallback(prompt);
 
-    try {
-      // Clean the response text by removing markdown code blocks
-      let cleanJson = responseText;
-      
-      // Remove markdown code blocks if present
-      if (responseText.includes('```')) {
-        cleanJson = responseText
-          .replace(/```json\n|```\n|```json|```/g, '')
-          .trim();
-      }
-
-      // Add logging to debug the cleaned JSON
-      console.log("Cleaned JSON before parsing:", cleanJson);
-
-      // Parse the cleaned JSON
-      const parsedResponse = JSON.parse(cleanJson);
-
-      // Validate the parsed response has all required fields
-      if (!parsedResponse.summary) {
-        console.error("❌ Missing required fields in response:", parsedResponse);
-        return null;
-      }
-
-      if (parsedResponse.isRelevant) {
-        console.log("✅ News summarized successfully:", parsedResponse.summary);
-        console.log("✅ News topic identified:", parsedResponse.topic);
-        console.log("✅ Cities found:", parsedResponse.citiesFound);
-        console.log("✅ Selected location:", parsedResponse.location);
-
-        return {
-          ...news,
-          summary: parsedResponse.summary,
-          topic: parsedResponse.topic,
-          location: parsedResponse.location,
-          citiesFound: parsedResponse.citiesFound || []
-        };
-      }
-      console.log("⚠️ Article skipped: No relevant cities found for state:", searchQuery);
-      return null;
-    } catch (parseError) {
-      console.error("❌ JSON Parse Error:", parseError);
-      console.error("❌ Raw response:", responseText);
-      console.error("❌ Attempted to parse:", cleanJson);
-      return null;
+    // Clean the response text by removing markdown code blocks if present
+    let cleanJson = responseText;
+    if (responseText.includes('```')) {
+      cleanJson = responseText.replace(/```json\n|```\n|```json|```/g, '').trim();
     }
+
+    console.log("Cleaned JSON before parsing:", cleanJson);
+
+    const parsedResponse = JSON.parse(cleanJson);
+
+    // If the summary is missing or not marked as relevant, fallback to original content
+    if (!parsedResponse.summary || !parsedResponse.isRelevant) {
+      console.error("❌ Invalid summary result:", parsedResponse);
+      const fallbackSummary = news.content ? news.content.split(" ").slice(0, 100).join(" ") : "Summary not available";
+      return {
+        ...news,
+        summary: fallbackSummary,
+        topic: news.title,
+        location: getRandomCity(searchQuery),
+        isRelevant: true,
+        citiesFound: []
+      };
+    }
+
+    console.log("✅ News summarized successfully:", parsedResponse.summary);
+    return {
+      ...news,
+      summary: parsedResponse.summary,
+      topic: parsedResponse.topic,
+      location: getRandomCity(searchQuery),
+      citiesFound: parsedResponse.citiesFound || []
+    };
   } catch (error) {
-    console.error("❌ Gemini Summarization Error:", error);
-    return null;
+    console.error("❌ Summarization error:", error);
+    const fallbackSummary = news.content ? news.content.split(" ").slice(0, 100).join(" ") : "Summary not available";
+    return {
+      ...news,
+      summary: fallbackSummary,
+      topic: news.title,
+      location: getRandomCity(searchQuery),
+      isRelevant: true,
+      citiesFound: []
+    };
   }
 }
 
