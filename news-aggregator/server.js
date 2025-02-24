@@ -2,13 +2,50 @@ const express = require('express');
 const cors = require('cors');
 const NewsAPI = require('newsapi');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { scrapeNewsContent } = require('./news_crawler/scraper');
+const cheerio = require('cheerio'); // Added for scraping functionality
 
 const app = express();
 const port = 5001;
 
 app.use(cors());
 app.use(express.json());
+
+// --- Inline Scraping Function ---
+async function scrapeNewsContent(url) {
+  try {
+    console.log("Scraping URL:", url);
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Connection': 'keep-alive'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    const content = $('article').text().trim();
+    
+    if (!content) {
+      console.log('No content found with article selector');
+      // Fallback selectors for BBC news
+      const fallbackContent = $('.article__body-content').text().trim() || 
+                              $('.story-body').text().trim();
+      return fallbackContent;
+    }
+
+    console.log('Scraped content:', content);
+    return content;
+  } catch (error) {
+    console.error('Scraping Error:', url, error);
+    return null;
+  }
+}
 
 // --- NewsAPI Fallback Setup ---
 const newsApiKeys = [
@@ -24,7 +61,7 @@ const getNewsApiKey = () => newsApiKeys[currentNewsApiIndex];
 // Initialize NewsAPI with the current key.
 let newsapi = new NewsAPI(getNewsApiKey());
 
-// Helper function for NewsAPI fallback (if you need to fetch articles from NewsAPI in the future)
+// Helper function for NewsAPI fallback
 async function fetchNewsWithFallback(url) {
   for (let i = 0; i < newsApiKeys.length; i++) {
     try {
@@ -78,36 +115,30 @@ async function summarizeNews(news, searchQuery) {
   console.log('News to be summarized:', news.title);
 
   try {
-    const prompt = `Analyze and summarize the following news article:
+    const prompt = `Summarize the following Indian news article in under 100 words:
     Title: ${news.title}
     Author: ${news.author}
     Content: ${news.content}
-    Search Query: ${searchQuery}
-    
-    Task:
-    1. Extract all cities mentioned in the news content.
-    2. Check the news.author field for any city information.
-    3. For each extracted city (from both content and author), verify whether it is actually located within the Indian state specified in the search query using accurate geographic data.
-    4. Only consider the article relevant if at least one of these cities is verifiably located in the specified state.
-    5. If the article is relevant, choose one of the matching cities as the location in your response.
-    
-    Rules:
-    - If the search query contains a state (e.g., "Punjab news"), only include articles about cities in that state.
-    - Do not misclassify cities. For example, do not consider Kolkata as part of Haryana or Delhi as part of Punjab.
-    - If none of the extracted cities (including those from news.author) are actually located in the specified state, set "isRelevant" to false.
-    - If no state is specified in the search query, set "isRelevant" to true and use the main city from the news.
-    - Only consider Indian cities and states.
-    
-    Provide a JSON response in this exact format (no markdown, no code blocks):
+    Search Query (State): ${searchQuery}
+
+    Instructions:
+    1. Confirm that the article is an Indian news piece.
+    2. Extract any city names mentioned in the article (from both content and author) and filter them to include only cities located in India.
+    3. From these, identify the cities that are within the state specified in the search query.
+    4. If at least one valid city from the queried state is found, mark the article as relevant. Choose one of these cities as the "location" and list all valid cities in "citiesFound".
+    5. If no valid city from the queried state is found, set "isRelevant" to false.
+    6. Provide a concise summary and a topic in the format "City - News Category".
+    7. Do not assign any city as the location if it is outside India.
+
+    Output the result as JSON in exactly this format (no markdown, no code blocks):
     {
       "summary": "Summarized news content in under 100 words",
       "topic": "City - News Category",
       "location": "City",
       "isRelevant": true/false,
-      "citiesFound": ["list of cities found in the article"]
-    }`;    
+      "citiesFound": ["list of cities from the queried state"]
+    }`;
 
-    // Use the fallback function for Gemini
     const result = await generateContentWithFallback(prompt);
     const responseText = result.response.text();
 
