@@ -10,7 +10,7 @@ const app = express();
 const port = 5001;
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://indian-news-summaries.netlify.app'],
+  origin: ['http://localhost:3000', 'https://indian-news-summary.netlify.app'],
   methods: ['GET', 'POST'],
   credentials: true
 }));
