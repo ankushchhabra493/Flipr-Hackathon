@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "./components/ui/card";
-import { Input } from "./components/ui/input";
 import { Button } from "./components/ui/button";
 import "./App.css";
 
-const BACKEND_URL = "https://flipr-hackathon-4.onrender.com";
+const BACKEND_URL = "http://localhost:5001";
+const states = [
+  "Global News", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar",
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala",
+  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya","Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+  "Uttar Pradesh", "Uttarakhand"
+];
 
 function App() {
-  const [query, setQuery] = useState('');
+  const [selectedState, setSelectedState] = useState("Global News");
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -17,13 +22,11 @@ function App() {
     setError("");
 
     try {
-      const endpoint = searchQuery.trim() === '' ? '/fetch-global-news' : '/fetch-news';
+      const endpoint = searchQuery === "Global News" ? '/fetch-global-news' : '/fetch-news';
       const response = await fetch(`${BACKEND_URL}${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: searchQuery }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: searchQuery === "Global News" ? "" : searchQuery }),
       });
 
       if (!response.ok) {
@@ -32,13 +35,10 @@ function App() {
 
       const data = await response.json();
       
-      if (searchQuery.trim() !== '') {
-        // Call summarize-news endpoint
+      if (searchQuery !== "Global News") {
         const summarizedResponse = await fetch(`${BACKEND_URL}/summarize-news`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ articles: data.articles.slice(0, 15), query: searchQuery }),
         });
 
@@ -51,7 +51,7 @@ function App() {
       } else {
         setNews(data.articles);
       }
-      
+
       setError("");
     } catch (error) {
       console.error("❌ Fetch Error:", error.message);
@@ -63,26 +63,30 @@ function App() {
   };
 
   useEffect(() => {
-    fetchArticles();
-  }, []);
-
-  const handleSearch = () => {
-    fetchArticles(query);
-  };
+    fetchArticles(selectedState);
+  }, [selectedState]);
 
   return (
     <div className="app-container">
       <div className="header">
         <h1 className="text-3xl font-bold">Latest News</h1>
-        <Input
-          placeholder="Search for news..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="search-bar"
-        />
-        <Button onClick={handleSearch} disabled={loading}>
-          {loading ? 'Loading...' : 'Search'}
-        </Button>
+        <select
+          value={selectedState}
+          onChange={(e) => setSelectedState(e.target.value)}
+          style={{ 
+            padding: '12px', 
+            fontSize: '18px', 
+            border: '1px solid #ccc', 
+            borderRadius: '4px', 
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            outline: 'none',
+            margin: '10px 0'
+          }}
+        >
+          {states.map((state) => (
+            <option key={state} value={state}>{state}</option>
+          ))}
+        </select>
         {error && <p className="text-red-500">{error}</p>}
       </div>
 
@@ -97,26 +101,15 @@ function App() {
                 <h2 className="text-xl font-semibold">
                   {article.location}
                 </h2>
-                <h3 className="text-lg font-medium mt-3">
-                  {article.title}
-                </h3>
+                <h3 className="text-lg font-medium mt-3">{article.title}</h3>
                 <div className="mt-4">
                   <span className="font-semibold text-gray-700">Summary: </span>
                   <p className="text-gray-600 mt-1">
-                    {query ? (
-                      typeof article.summary === 'string' ? 
-                        article.summary : 
-                        article.description
-                    ) : article.description}
+                    {selectedState !== "Global News" ? (typeof article.summary === 'string' ? article.summary : article.description) : article.description}
                   </p>
                 </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  Published at: {new Date(article.publishedAt).toLocaleString()}
-                </p>
-                <Button
-                  className="mt-4"
-                  onClick={() => window.open(article.url, "_blank")}
-                >
+                <p className="text-sm text-gray-500 mt-2">Published at: {new Date(article.publishedAt).toLocaleString()}</p>
+                <Button className="mt-4" onClick={() => window.open(article.url, "_blank")}>
                   Read More
                 </Button>
               </CardContent>
@@ -124,7 +117,7 @@ function App() {
           ))}
         </div>
       ) : (
-        !query && <p className="text-center">No news available.</p>
+        !loading && <p className="text-center">No news available.</p>
       )}
     </div>
   );

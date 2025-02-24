@@ -10,7 +10,7 @@ const app = express();
 const port = 5001;
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://newsummaries.netlify.app'],
+  origin: ['http://localhost:3000', 'https://indian-news-summary.netlify.app'],
   methods: ['GET', 'POST'],
   credentials: true
 }));
@@ -114,9 +114,17 @@ let currentGeminiIndex = 0;
 const geminiKeys = [
   "AIzaSyBEnXL5Cqo-vXhQMSriRvt0HWsjHNUpS1c",
   "AIzaSyA-aKbT-UsYnl5qGNDIs-ByvSRwaPAuWWA",
-  "AIzaSyAtSOw0T8S19ybibigUpBddFWHKhsbLlxM",
+  "AIzaSyCY0VD7dGr4TE92gq62zAaXNDH8zr-UgSs",
   "AIzaSyCY0VD7dGr4TE92gq62zAaXNDH8zr-UgSs",
   "AIzaSyBc_h-7OY97_Fvkw9L0jSttofstah5c9Xc",
+  "AIzaSyD7Ftzy5T4kFRJGX1d88CQo0PaHOmVLH6A",
+  "AIzaSyCA1KieXJxkYvxbeOZGKF6kD9KQr2XKnC4",
+  "AIzaSyBUV8rZ_pNuHp9zc10TWee7hU8CRQwvadc",
+  "AIzaSyAD0VfXgVdMbJq6BQUY-mMCchNkIiHVxRQ",
+  "AIzaSyDBxfnMHj_nQc2zzWwQOjCHqe2_yMsi0xk",
+  "AIzaSyAF5jmTZAuc78j1rInKvrwJBWtFIJKYeG0",
+  "AIzaSyABHs_TVnhtT3u0Oc47DQVsw-GT75dZpkc",
+  "AIzaSyAbOT9xIpEfqlyN_qo2TYca7M7on90hjzY"
 ];
 
 // Add delay between API calls
