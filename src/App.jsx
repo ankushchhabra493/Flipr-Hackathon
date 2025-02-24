@@ -3,7 +3,7 @@ import { Card, CardContent } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import "./App.css";
 
-const BACKEND_URL = "http://localhost:5001";
+const BACKEND_URL = "https://indian-news-summary.onrender.com";
 const states = [
   "Global News", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar",
   "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala",
