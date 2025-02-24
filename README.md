@@ -1,7 +1,8 @@
 # 📢 Flipr Hackathon 2025 - Autonomous AI Agent 📰
 
 ## Website Preview
-<img width="1792" alt="Screenshot 2025-02-24 at 7 27 13 PM" src="https://github.com/user-attachments/assets/1ea9870e-8e20-4e80-8f41-36fb08e2ff13" />
+<img width="1792" alt="Screenshot 2025-02-24 at 9 43 13 PM" src="https://github.com/user-attachments/assets/140a1917-9235-47e4-b5d8-c796911aac98" />
+
 
 ## 🌐 Live Demo
 **Frontend Deployed at:** [https://indian-news-summary.netlify.app/](https://indian-news-summary.netlify.app/)  
