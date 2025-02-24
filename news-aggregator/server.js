@@ -10,10 +10,66 @@ const port = 5001;
 app.use(cors());
 app.use(express.json());
 
-// Initialize APIs
-const newsapi = new NewsAPI('ab8df099af1a4b90aec7e1fd523a2319');
-const genAI = new GoogleGenerativeAI('AIzaSyA-aKbT-UsYnl5qGNDIs-ByvSRwaPAuWWA');
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
+// --- NewsAPI Fallback Setup ---
+const newsApiKeys = [
+  "12f36fbf62a74407b680f9cc322dfe06",
+  "7f66387075b84241b99cf1c8679ecbab",
+  "ab8df099af1a4b90aec7e1fd523a2319",
+  "ae058c119aa647bfa0b27b5d872d98eb",
+  "717702c6ceda43478a67caad44dcc89b"
+];
+let currentNewsApiIndex = Math.floor(Math.random() * newsApiKeys.length);
+const getNewsApiKey = () => newsApiKeys[currentNewsApiIndex];
+
+// Initialize NewsAPI with the current key.
+let newsapi = new NewsAPI(getNewsApiKey());
+
+// Helper function for NewsAPI fallback (if you need to fetch articles from NewsAPI in the future)
+async function fetchNewsWithFallback(url) {
+  for (let i = 0; i < newsApiKeys.length; i++) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`NewsAPI key ${getNewsApiKey()} failed with HTTP ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.warn(error.message, "Trying another NewsAPI key...");
+      currentNewsApiIndex = (currentNewsApiIndex + 1) % newsApiKeys.length;
+      newsapi = new NewsAPI(getNewsApiKey());
+    }
+  }
+  throw new Error("All NewsAPI keys failed.");
+}
+
+// --- Gemini Fallback Setup ---
+const geminiKeys = [
+  "AIzaSyBEnXL5Cqo-vXhQMSriRvt0HWsjHNUpS1c",
+  "AIzaSyA-aKbT-UsYnl5qGNDIs-ByvSRwaPAuWWA",
+  "AIzaSyAtSOw0T8S19ybibigUpBddFWHKhsbLlxM"
+];
+let currentGeminiIndex = Math.floor(Math.random() * geminiKeys.length);
+const getGeminiKey = () => geminiKeys[currentGeminiIndex];
+
+// Initialize Gemini with the current key.
+let genAI = new GoogleGenerativeAI(getGeminiKey());
+let model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
+
+// Helper function for Gemini fallback
+async function generateContentWithFallback(prompt) {
+  for (let i = 0; i < geminiKeys.length; i++) {
+    try {
+      const result = await model.generateContent(prompt);
+      return result;
+    } catch (error) {
+      console.warn(`Gemini key ${getGeminiKey()} failed: ${error.message}. Trying another key...`);
+      currentGeminiIndex = (currentGeminiIndex + 1) % geminiKeys.length;
+      genAI = new GoogleGenerativeAI(getGeminiKey());
+      model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
+    }
+  }
+  throw new Error("All Gemini API keys failed.");
+}
 
 async function summarizeNews(news, searchQuery) {
   if (!news || !news.content) return null;
@@ -47,7 +103,8 @@ async function summarizeNews(news, searchQuery) {
       "citiesFound": ["list of cities found in the article"]
     }`;
 
-    const result = await model.generateContent(prompt);
+    // Use the fallback function for Gemini
+    const result = await generateContentWithFallback(prompt);
     const responseText = result.response.text();
 
     try {
