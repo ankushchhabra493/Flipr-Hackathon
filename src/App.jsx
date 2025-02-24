@@ -7,7 +7,7 @@ const BACKEND_URL = "http://localhost:5001";
 const states = [
   "Global News", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar",
   "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala",
-  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya","Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
   "Uttar Pradesh", "Uttarakhand"
 ];
 
@@ -68,28 +68,32 @@ function App() {
 
   return (
     <div className="app-container">
-      <div className="header">
+      <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 className="text-3xl font-bold">Latest News</h1>
+        <div style={{ textAlign: 'right' }}>
+        <div style={{ fontSize: '22px', fontWeight: '600', marginBottom: '0.2rem' }}>Statewise news</div>
         <select
-          value={selectedState}
-          onChange={(e) => setSelectedState(e.target.value)}
-          style={{ 
-            padding: '12px', 
-            fontSize: '18px', 
-            border: '1px solid #ccc', 
-            borderRadius: '4px', 
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            outline: 'none',
-            margin: '10px 0'
-          }}
-        >
-          {states.map((state) => (
-            <option key={state} value={state}>{state}</option>
-          ))}
-        </select>
-        {error && <p className="text-red-500">{error}</p>}
+            id="newsSelect"
+            value={selectedState}
+            onChange={(e) => setSelectedState(e.target.value)}
+            style={{ 
+              padding: '12px', 
+              fontSize: '15px', 
+              border: '1px solid #ccc', 
+              borderRadius: '4px', 
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              outline: 'none',
+              margin: '10px 0'
+            }}
+          >
+            {states.map((state) => (
+              <option key={state} value={state}>{state}</option>
+            ))}
+          </select>
+        </div>
       </div>
-
+      
+      {error && <p className="text-red-500">{error}</p>}
       {loading && <p className="text-blue-500 text-center">Loading articles...</p>}
       {error && <p className="text-red-500 text-center">{error}</p>}
 
