@@ -209,7 +209,7 @@ async function summarizeNews(news, searchQuery) {
       const parsedResponse = JSON.parse(cleanJson);
 
       // Validate the parsed response has all required fields
-      if (!parsedResponse.summary || !parsedResponse.topic || !parsedResponse.location) {
+      if (!parsedResponse.summary) {
         console.error("❌ Missing required fields in response:", parsedResponse);
         return null;
       }
